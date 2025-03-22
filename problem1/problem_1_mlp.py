@@ -40,7 +40,26 @@ class MLP(nn.Module):
 
     def initialize_net(self):
         """Build the network according to the provided hyperparameters."""
-        raise NotImplementedError("Not implemented!")
+        # Create a list to hold all layers
+        layers = []
+        
+        # Get the activation function based on the string name
+        activation_fn = getattr(nn, self.activation)()
+        
+        # First layer: from input dimension to hidden dimension
+        layers.append(nn.Linear(self.in_features, self.hidden_features, bias=self.bias))
+        layers.append(activation_fn)
+        
+        # Hidden layers: hidden dimension to hidden dimension
+        for _ in range(self.hidden_layers - 1):  # -1 because we already added one layer
+            layers.append(nn.Linear(self.hidden_features, self.hidden_features, bias=self.bias))
+            layers.append(activation_fn)
+        
+        # Output layer: hidden dimension to output dimension (always linear)
+        layers.append(nn.Linear(self.hidden_features, self.out_features, bias=True))
+        
+        # Create a sequential model from the layers
+        return nn.Sequential(*layers)
     
     def forward(self, coords: jaxtyping.Float[torch.Tensor, "N D"]) -> Tuple[
         jaxtyping.Float[torch.Tensor, "N out_features"],
@@ -57,4 +76,11 @@ class MLP(nn.Module):
         -1 means "furthest left" or "furthest bottom" (depending on the dimension) and 1 means "furthest right"
         or "furthest top".
         """
-        raise NotImplementedError("Not implemented!")
+        # Create a copy of the coordinates that requires gradients
+        coords_with_grad = coords.clone().detach().requires_grad_(True)
+        
+        # Pass the coordinates through the network
+        outputs = self.net(coords_with_grad)
+        
+        # Return the outputs and the gradient-enabled coordinates
+        return outputs, coords_with_grad

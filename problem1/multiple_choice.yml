@@ -1,5 +1,6 @@
 ################################################################
-# Please read this paper to answer the question: https://arxiv.org/abs/2006.09661
+# Please read this paper to answer the question: 
+# https://arxiv.org/abs/2006.09661
 ################################################################
 # FORMAT INSTRUCTIONS:
 # 1. All "CorrectAnswers" values should be null (they are used by the answer key/grader
@@ -21,52 +22,102 @@
 # ones, you get that fraction; if you get wrong ones you may get a score that will be rounded to zero.
 ################################################################
 Questions:
-- Question: What is the difference between a neural field and grid representations of images or other higher dimensional signals? Why might we prefer it?
-  Answers: null
-  CorrectAnswers: null
-  Options:
-    Answer1: Memory scales up much more slowly as dimensionality and resolution increase. Specifically, for a grid it would scale exponentially in the resolution and polynomially in the dimensionality, whereas a neural field scales in terms of complexity.
-    Answer2: Memory scales up much more slowly as dimensionality and resolution increase. Specifically, for a grid it would scale polynomially in the resolution and exponentially in the dimensionality, whereas a neural field scales in terms of complexity.
-    Answer3: You can achieve strictly better resolution in all cases.
-    Answer4: You can run a physics engine more easily
-    Answer5: It is faster for querying because you can pipeline layer-by-layer neural network computation
+  - Question: What is the difference between a neural field and grid 
+    representations of images or other higher dimensional signals? Why might we 
+    prefer it?
+    Answers: 
+      - Answer2
+    CorrectAnswers: null
+    Options:
+      Answer1: Memory scales up much more slowly as dimensionality and resolution 
+      increase. Specifically, for a grid it would scale exponentially in the 
+      resolution and polynomially in the dimensionality, whereas a neural field scales
+       in terms of complexity.
+      Answer2: Memory scales up much more slowly as dimensionality and resolution 
+      increase. Specifically, for a grid it would scale polynomially in the resolution
+       and exponentially in the dimensionality, whereas a neural field scales in terms
+       of complexity.
+      Answer3: You can achieve strictly better resolution in all cases.
+      Answer4: You can run a physics engine more easily
+      Answer5: It is faster for querying because you can pipeline layer-by-layer 
+      neural network computation
 ################################################################
-- Question: In what ways are SIRENs an improvement over ReLU MLPs?
-  Answers: null
-  CorrectAnswers: null
-  Options:
-    Answer1: By using sinusoidal activation functions their training converges faster, models high frequencies better, and enables training on image gradients.
-    Answer2: By using fourier activation functions their training converges slower, but models high frequencies much better at a cost of compute.
-    Answer3: By being the first to ever use periodic activation functions their training converges faster, models high frequencies better, and enables training on image integrals.
-    Answer4: By being the first to ever use bounded activation functions their training converges faster, models low frequencies better, and enables training on image derivatives.
-    Answer5: By being the first to ever use locally linear activation functions their training converges faster, models low frequencies better, and enables training on image derivatives.
+  - Question: In what ways are SIRENs an improvement over ReLU MLPs?
+    Answers: 
+      - Answer1
+    CorrectAnswers: null
+    Options:
+      Answer1: By using sinusoidal activation functions their training converges 
+      faster, models high frequencies better, and enables training on image gradients.
+      Answer2: By using fourier activation functions their training converges 
+      slower, but models high frequencies much better at a cost of compute.
+      Answer3: By being the first to ever use periodic activation functions their 
+      training converges faster, models high frequencies better, and enables training 
+      on image integrals.
+      Answer4: By being the first to ever use bounded activation functions their 
+      training converges faster, models low frequencies better, and enables training 
+      on image derivatives.
+      Answer5: By being the first to ever use locally linear activation functions 
+      their training converges faster, models low frequencies better, and enables 
+      training on image derivatives.
 ################################################################
-- Question: How can you find a spatial derivative of a neural field in a way that is not possible with voxel grids?
-  Answers: null
-  CorrectAnswers: null
-  Options:
-    Answer1: Finite differences
-    Answer2: Second order methods leveraging the fisher information matrix of the weights
-    Answer3: Calculating the gradient w.r.t. to the inputs
-    Answer4: Computing the gradient of the output w.r.t. the weights
-    Answer5: Backpropagating until an intermediate layer to find that gradient of the output w.r.t. that activation
+  - Question: How can you find a spatial derivative of a neural field in a way 
+    that is not possible with voxel grids?
+    Answers: 
+      - Answer3
+    CorrectAnswers: null
+    Options:
+      Answer1: Finite differences
+      Answer2: Second order methods leveraging the fisher information matrix of 
+      the weights
+      Answer3: Calculating the gradient w.r.t. to the inputs
+      Answer4: Computing the gradient of the output w.r.t. the weights
+      Answer5: Backpropagating until an intermediate layer to find that gradient 
+      of the output w.r.t. that activation
 ################################################################
-- Question: What do the three parts of the signed distance function loss mean?
-  Answers: null
-  CorrectAnswers: null
-  Options:
-    Answer1: (a) Gradient is non-negative almost everywhere, (b) value is zero at the zero-surface/set and the gradient is pointing along the normal of the zero-set (c) penalize negative values away from the zero set (because signed distance is an absolute value).
-    Answer2: (a) Gradient is almost 1 everywhere, (b) value is zero at the zero-surface/set and the gradient is pointing along the normal of the zero-set (c) penalize small values away from the zero set.
-    Answer3: (a) Gradient is non-negative almost everywhere, (b) value is zero at the zero-surface/set and the gradient is pointing along the normal of the zero-set (c) penalize small negative away from the zero set (because signed distance is an absolute value).
-    Answer4: (a) Gradient is almost 1 everywhere, (b) value is infinite at the zero-surface/set and the gradient is pointing along the normal of the zero-set (c) penalize large values away from the zero set.
+  - Question: What do the three parts of the signed distance function loss mean?
+    Answers: 
+      - Answer2
+    CorrectAnswers: null
+    Options:
+      Answer1: (a) Gradient is non-negative almost everywhere, (b) value is zero 
+      at the zero-surface/set and the gradient is pointing along the normal of the 
+      zero-set (c) penalize negative values away from the zero set (because signed 
+      distance is an absolute value).
+      Answer2: (a) Gradient is almost 1 everywhere, (b) value is zero at the zero-
+      surface/set and the gradient is pointing along the normal of the zero-set (c) 
+      penalize small values away from the zero set.
+      Answer3: (a) Gradient is non-negative almost everywhere, (b) value is zero 
+      at the zero-surface/set and the gradient is pointing along the normal of the 
+      zero-set (c) penalize small negative away from the zero set (because signed 
+      distance is an absolute value).
+      Answer4: (a) Gradient is almost 1 everywhere, (b) value is infinite at the 
+      zero-surface/set and the gradient is pointing along the normal of the zero-set 
+      (c) penalize large values away from the zero set.
 ################################################################
-- Question: "What is an interpretation of an optimal 1-hidden-layer SIREN network trained on a single image? Specifically, imagine we take in two coordinates: `x, y` and we output one: `z` where we have a function `z = f(x, y)` for some differentiable, bounded, `f` in a finite region (i.e., `[-1, 1]^2`). The 1-layer SIREN network first takes the inputs and linearly maps them to a higher dimensional space via a matrix, before adding a bias. These are input into the `sin` function and then those sinusoids are dot-product-ed with another set of weights to yield the scalar `z`. What might these weights mean?) _Hint: it's a function we've emphasized the importance of in class many times."
-  Answers: null
-  CorrectAnswers: null
-  Options:
-    Answer1: The generalized Laplace transform using any non-imaginary base
-    Answer2: The Fourier transform independently along each dimension (since SIREN takes in the two dimensions separately)
-    Answer3: Fourier transform with units that depend on your implementation of the architecture, but will not change across data and training run.
-    Answer4: This is a trick question. SIREN, like many other neural networks, is not _inherently_ interpretable. It might be, but that would be a property of the dataset, regularization, or pure luck.
-    Answer5: The Fourier transform of the fourier transform since you are applying sine function twice.
-    Answer6: The Fourier transform but in randomly determined units that may change with the data and with every single training run (assuming a different random seed).
+  - Question: "What is an interpretation of an optimal 1-hidden-layer SIREN 
+    network trained on a single image? Specifically, imagine we take in two 
+    coordinates: `x, y` and we output one: `z` where we have a function `z = f(x, 
+    y)` for some differentiable, bounded, `f` in a finite region (i.e., `[-1, 
+    1]^2`). The 1-layer SIREN network first takes the inputs and linearly maps them 
+    to a higher dimensional space via a matrix, before adding a bias. These are 
+    input into the `sin` function and then those sinusoids are dot-product-ed with 
+    another set of weights to yield the scalar `z`. What might these weights mean?) 
+    _Hint: it's a function we've emphasized the importance of in class many times."
+    Answers: 
+      - Answer6
+    CorrectAnswers: null
+    Options:
+      Answer1: The generalized Laplace transform using any non-imaginary base
+      Answer2: The Fourier transform independently along each dimension (since 
+      SIREN takes in the two dimensions separately)
+      Answer3: Fourier transform with units that depend on your implementation of 
+      the architecture, but will not change across data and training run.
+      Answer4: This is a trick question. SIREN, like many other neural networks, 
+      is not _inherently_ interpretable. It might be, but that would be a property of 
+      the dataset, regularization, or pure luck.
+      Answer5: The Fourier transform of the fourier transform since you are 
+      applying sine function twice.
+      Answer6: The Fourier transform but in randomly determined units that may 
+      change with the data and with every single training run (assuming a different 
+      random seed).
