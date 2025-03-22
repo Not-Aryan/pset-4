@@ -125,13 +125,47 @@ def camera_param_to_rays(c2w, intrinsics, H=128, W=128):
         ray_origins: [H, W, 3] origin points for rays
         ray_directions: [H, W, 3] direction vectors for rays
     """
-    # TODO: Implement this function
-    # 1. Create pixel coordinates using meshgrid
-    # 2. Convert pixel coordinates to camera coordinates using intrinsics
-    # 3. Transform rays from camera space to world space using c2w
-    # 4. Return ray origins and directions of shape [H, W, 3]
-
-    pass
+    device = c2w.device
+    
+    # Extract intrinsic parameters
+    fx, fy, cx, cy = intrinsics
+    
+    # Create a meshgrid of pixel coordinates
+    # Add 0.5 to pixel coordinates to sample at pixel centers
+    y, x = torch.meshgrid(
+        torch.arange(H, device=device) + 0.5,
+        torch.arange(W, device=device) + 0.5,
+        indexing='ij'
+    )
+    
+    # Convert pixel coordinates to camera coordinates using intrinsics
+    # X_cam = (x - cx) / fx
+    # Y_cam = (y - cy) / fy
+    # Z_cam = 1
+    x_cam = (x - cx) / fx
+    y_cam = (y - cy) / fy
+    z_cam = torch.ones_like(x)
+    
+    # Stack to create camera ray directions
+    directions_cam = torch.stack([x_cam, y_cam, z_cam], dim=-1)  # [H, W, 3]
+    
+    # Normalize ray directions to unit length
+    directions_cam = directions_cam / torch.norm(directions_cam, dim=-1, keepdim=True)
+    
+    # Transform camera coordinates to world coordinates using c2w
+    # Extract rotation matrix (3x3) and translation vector from c2w
+    rotation = c2w[:3, :3]  # [3, 3]
+    translation = c2w[:3, 3]  # [3]
+    
+    # Apply rotation to directions
+    # directions_world = directions_cam @ rotation.T
+    directions_world = torch.matmul(directions_cam, rotation.T)  # [H, W, 3]
+    
+    # Create ray origins (camera position in world coordinates)
+    # All rays start from the camera position
+    ray_origins = translation.expand(H, W, 3)  # [H, W, 3]
+    
+    return ray_origins, directions_world
 
 
 ############################
@@ -156,12 +190,24 @@ def sample_points_on_rays(
         points: [H, W, num_samples, 3] sampled points in 3D space
         ts: [num_samples] distances along the rays
     """
-    # TODO: Implement this function
-    # 1. Generate uniformly spaced samples along each ray
-    # 2. Compute the 3D coordinates of each sample point
-    # 3. Return an array of sample points with shape [H, W, num_samples, 3]
-
-    pass
+    device = ray_origins.device
+    H, W, _ = ray_origins.shape
+    
+    # Generate uniformly spaced samples along each ray
+    # Create a tensor of distances from t_near to t_far
+    ts = torch.linspace(t_near, t_far, num_samples, device=device)  # [num_samples]
+    
+    # Compute the 3D coordinates of each sample point
+    # points = ray_origins[:, :, None, :] + ray_directions[:, :, None, :] * ts[None, None, :, None]
+    # Expand dimensions for broadcasting
+    ray_origins_expanded = ray_origins.unsqueeze(2)  # [H, W, 1, 3]
+    ray_directions_expanded = ray_directions.unsqueeze(2)  # [H, W, 1, 3]
+    ts_expanded = ts.view(1, 1, num_samples, 1)  # [1, 1, num_samples, 1]
+    
+    # Compute points along rays: origin + t * direction
+    points = ray_origins_expanded + ray_directions_expanded * ts_expanded  # [H, W, num_samples, 3]
+    
+    return points, ts
 
 
 ############################
@@ -181,14 +227,36 @@ def volume_rendering(densities, colors, deltas):
     Returns:
         image: [H, W, 3] rendered image
     """
-    # TODO: Implement this function
-    # 1. Initialize accumulated color and transmittance
-    # 2. For each sample along the ray:
-    #    - Compute alpha from density and delta
-    #    - Update accumulated color and transmittance
-    # 3. Return the final rendered image
+    device = densities.device
+    H, W, num_samples, _ = densities.shape
+    
+    # Initialize accumulated color and transmittance
+    accumulated_color = torch.zeros(H, W, 3, device=device)
+    accumulated_transmittance = torch.ones(H, W, 1, device=device)
+    
+    # Iterate through samples front-to-back (from t_near to t_far)
+    for i in range(num_samples):
+        # Get current sample's density and color
+        density = densities[:, :, i:i+1, :]  # [H, W, 1, 1]
+        color = colors[:, :, i, :]  # [H, W, 3]
+        delta = deltas[i]  # scalar
+        
+        # Compute alpha from density and delta
+        alpha = 1.0 - torch.exp(-density * delta)  # [H, W, 1, 1]
+        
+        # Compute weight = transmittance * alpha
+        # Ensure alpha has the same shape as accumulated_transmittance
+        alpha = alpha.squeeze(-2)  # [H, W, 1]
+        weight = accumulated_transmittance * alpha  # [H, W, 1]
+        
+        # Update accumulated color
+        accumulated_color = accumulated_color + weight * color
+        
+        # Update accumulated transmittance
+        accumulated_transmittance = accumulated_transmittance * (1.0 - alpha)
+    
+    return accumulated_color
 
-    pass
 
 
 ############################
@@ -316,6 +384,7 @@ def demo():
         axes[i][1].axis("off")
 
     plt.tight_layout()
+    plt.savefig("volume_rendering.png")
     plt.show()
 
 

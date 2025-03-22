@@ -73,17 +73,47 @@ def camera_param_to_rays(c2w, intrinsics, H=128, W=128):
         ray_directions: [H, W, 3] direction vectors for rays
     """
     # NOTE: This function should be the same as in the volumetric rendering problem
-
-    ##################
-    # YOUR CODE HERE #
-    ##################
-
-    # Hint: Generate ray origins and directions for each pixel in the image
-    # 1. Create a meshgrid of pixel coordinates
-    # 2. Convert pixel coordinates to camera coordinates using intrinsics
-    # 3. Transform camera coordinates to world coordinates using c2w
-
-    return ray_origins, ray_directions
+    device = c2w.device
+    
+    # Extract intrinsic parameters
+    fx, fy, cx, cy = intrinsics
+    
+    # Create a meshgrid of pixel coordinates
+    # Add 0.5 to pixel coordinates to sample at pixel centers
+    y, x = torch.meshgrid(
+        torch.arange(H, device=device) + 0.5,
+        torch.arange(W, device=device) + 0.5,
+        indexing='ij'
+    )
+    
+    # Convert pixel coordinates to camera coordinates using intrinsics
+    # X_cam = (x - cx) / fx
+    # Y_cam = (y - cy) / fy
+    # Z_cam = 1
+    x_cam = (x - cx) / fx
+    y_cam = (y - cy) / fy
+    z_cam = torch.ones_like(x)
+    
+    # Stack to create camera ray directions
+    directions_cam = torch.stack([x_cam, y_cam, z_cam], dim=-1)  # [H, W, 3]
+    
+    # Normalize ray directions to unit length
+    directions_cam = directions_cam / torch.norm(directions_cam, dim=-1, keepdim=True)
+    
+    # Transform camera coordinates to world coordinates using c2w
+    # Extract rotation matrix (3x3) and translation vector from c2w
+    rotation = c2w[:3, :3]  # [3, 3]
+    translation = c2w[:3, 3]  # [3]
+    
+    # Apply rotation to directions
+    # directions_world = directions_cam @ rotation.T
+    directions_world = torch.matmul(directions_cam, rotation.T)  # [H, W, 3]
+    
+    # Create ray origins (camera position in world coordinates)
+    # All rays start from the camera position
+    ray_origins = translation.expand(H, W, 3)  # [H, W, 3]
+    
+    return ray_origins, directions_world
 
 
 ############################
@@ -98,7 +128,7 @@ def sphere_tracing(
     t_near=0.0,
     t_far=3.0,
     max_iter=256,
-    epsilon=1e-4,
+    epsilon=3e-3,  # Increased to 3e-3 for better surface detection
 ):
     """
     Perform sphere tracing to find the intersection of rays with the implicit model.
@@ -120,18 +150,53 @@ def sphere_tracing(
 
     # Initialize output
     image = torch.zeros(H, W, 3, device=device)
-
-    ##################
-    # YOUR CODE HERE #
-    ##################
-
-    # Hint: Implement sphere tracing algorithm
-    # 1. Initialize t for each ray
-    # 2. Iteratively march along rays
-    # 3. Sample points along rays and query SDF
-    # 4. Update t for each ray based on SDF value
-    # 5. Stop marching when rays hit the surface or reach max iterations
-    # 6. Reconstruct image from hit points
+    
+    # Initialize t for each ray (starting distance)
+    t = torch.ones(H, W, device=device) * t_near
+    
+    # Track which rays have hit a surface
+    hit_mask = torch.zeros(H, W, dtype=torch.bool, device=device)
+    
+    # Track which rays are still active (not hit and not exceeded t_far)
+    active_mask = torch.ones(H, W, dtype=torch.bool, device=device)
+    
+    # Sphere tracing loop
+    for _ in range(max_iter):
+        # Skip if all rays have hit or are inactive
+        if not active_mask.any():
+            break
+        
+        # Sample points along active rays
+        points = ray_origins + t.unsqueeze(-1) * ray_directions  # [H, W, 3]
+        
+        # Only process active rays
+        active_points = points[active_mask]  # [num_active, 3]
+        
+        # Query SDF model for distances and colors
+        sdf, color = model(active_points)  # [num_active, 1], [num_active, 3]
+        
+        # Reshape SDF and color back to match active rays
+        sdf_full = torch.zeros(H, W, 1, device=device)
+        color_full = torch.zeros(H, W, 3, device=device)
+        
+        sdf_full[active_mask] = sdf
+        color_full[active_mask] = color
+        
+        # Check which rays hit the surface (SDF < epsilon)
+        new_hits = (sdf.squeeze(-1) < epsilon) & active_mask[active_mask]
+        
+        # Update hit mask and record colors for newly hit rays
+        hit_indices = torch.nonzero(active_mask)[new_hits]
+        if hit_indices.shape[0] > 0:
+            hit_mask[hit_indices[:, 0], hit_indices[:, 1]] = True
+            image[hit_indices[:, 0], hit_indices[:, 1]] = color[new_hits]
+        
+        # Update t for rays that haven't hit yet
+        # Using relaxation factor of 0.95 for nearly exact steps
+        t[active_mask] = t[active_mask] + sdf.squeeze(-1) * 0.95
+        
+        # Update active mask: rays are active if they haven't hit and t < t_far
+        active_mask = (~hit_mask) & (t < t_far)
 
     return image
 
@@ -174,14 +239,15 @@ def demo():
     }["submit"]
     intrinsics = torch.tensor([fx, fy, cx, cy], device=device)
 
-    # Two camera views
+    # Two camera views - make sure both are on the same device
     c2w_1 = torch.tensor(
         [
             [1.0, 0.0, 0.0, 0.0],
             [0.0, 1.0, 0.0, 0.0],
             [0.0, 0.0, -1.0, 2.0],  # Looking at the scene from z=2
             [0.0, 0.0, 0.0, 1.0],
-        ]
+        ],
+        device=device,  # Added device here
     )
 
     theta = math.radians(30)
