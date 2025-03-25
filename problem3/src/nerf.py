@@ -55,7 +55,7 @@ class NeRF(nn.Module):
         # 4. Composite the alpha values and colors
         # TODO: call the final composite function
         # replace the following line with the final composite function
-        radiance = None
+        radiance = self.alpha_composite(alphas, colors)
 
         return radiance
 

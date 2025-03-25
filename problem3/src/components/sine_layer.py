@@ -16,10 +16,28 @@ class SineLayer(nn.Module):
         self.omega_0 = omega_0
         self.is_first = is_first
         self.d_in = d_in
-        raise NotImplementedError("Use your problem1 implementation")
+        
+        # Create a linear layer
+        self.linear = nn.Linear(d_in, d_out, bias=bias)
+        
+        # Initialize weights
+        self.init_weights()
 
     def init_weights(self):
-        raise NotImplementedError("Use your problem1 implementation")
+        # Initialize weights according to the SIREN paper
+        if self.is_first:
+            # First layer initialization
+            bound = 1 / self.d_in
+            nn.init.uniform_(self.linear.weight, -bound, bound)
+        else:
+            # Hidden layer initialization
+            bound = np.sqrt(6 / self.d_in) / self.omega_0
+            nn.init.uniform_(self.linear.weight, -bound, bound)
+        
+        # Initialize bias if it exists
+        if self.linear.bias is not None:
+            nn.init.zeros_(self.linear.bias)
 
     def forward(self, input):
-        raise NotImplementedError("Use your problem1 implementation")
+        # Apply linear transformation followed by sine activation with frequency omega_0
+        return torch.sin(self.omega_0 * self.linear(input))

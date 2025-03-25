@@ -24,29 +24,25 @@ class SimpleImplicitModel(nn.Module):
         device = points_xyz.device
         batch_size = points_xyz.shape[0]
 
-        # Initialize SDF and color tensors
         sdf = torch.zeros(batch_size, 1, device=device)
         color = torch.zeros(batch_size, 3, device=device)
 
-        # Sphere 1: Center (0.5, 0.5, 0.5), Radius 0.2, Color: Blue
         sphere1_center = torch.tensor([0.5, 0.5, 0.5], device=device)
         sphere1_radius = 0.2
         sphere1_dist = (
             torch.norm(points_xyz - sphere1_center, dim=1, keepdim=True)
             - sphere1_radius
         )
-        sphere1_color = torch.tensor([0.1, 0.4, 0.8], device=device)  # Soft blue
+        sphere1_color = torch.tensor([0.1, 0.4, 0.8], device=device)
 
-        # Sphere 2: Center (0.2, 0.7, 0.3), Radius 0.2, Color: Green
         sphere2_center = torch.tensor([0.2, 0.7, 0.3], device=device)
         sphere2_radius = 0.2
         sphere2_dist = (
             torch.norm(points_xyz - sphere2_center, dim=1, keepdim=True)
             - sphere2_radius
         )
-        sphere2_color = torch.tensor([0.2, 0.7, 0.3], device=device)  # Soft green
+        sphere2_color = torch.tensor([0.2, 0.7, 0.3], device=device)
 
-        # Determine the closest sphere and assign the color and SDF
         sdf = torch.minimum(sphere1_dist, sphere2_dist)
         color = torch.where(sphere1_dist <= sphere2_dist, sphere1_color, sphere2_color)
 
@@ -75,43 +71,28 @@ def camera_param_to_rays(c2w, intrinsics, H=128, W=128):
     # NOTE: This function should be the same as in the volumetric rendering problem
     device = c2w.device
     
-    # Extract intrinsic parameters
     fx, fy, cx, cy = intrinsics
     
-    # Create a meshgrid of pixel coordinates
-    # Add 0.5 to pixel coordinates to sample at pixel centers
     y, x = torch.meshgrid(
         torch.arange(H, device=device) + 0.5,
         torch.arange(W, device=device) + 0.5,
         indexing='ij'
     )
     
-    # Convert pixel coordinates to camera coordinates using intrinsics
-    # X_cam = (x - cx) / fx
-    # Y_cam = (y - cy) / fy
-    # Z_cam = 1
     x_cam = (x - cx) / fx
     y_cam = (y - cy) / fy
     z_cam = torch.ones_like(x)
     
-    # Stack to create camera ray directions
-    directions_cam = torch.stack([x_cam, y_cam, z_cam], dim=-1)  # [H, W, 3]
+    directions_cam = torch.stack([x_cam, y_cam, z_cam], dim=-1)
     
-    # Normalize ray directions to unit length
     directions_cam = directions_cam / torch.norm(directions_cam, dim=-1, keepdim=True)
     
-    # Transform camera coordinates to world coordinates using c2w
-    # Extract rotation matrix (3x3) and translation vector from c2w
-    rotation = c2w[:3, :3]  # [3, 3]
-    translation = c2w[:3, 3]  # [3]
+    rotation = c2w[:3, :3]
+    translation = c2w[:3, 3]
     
-    # Apply rotation to directions
-    # directions_world = directions_cam @ rotation.T
-    directions_world = torch.matmul(directions_cam, rotation.T)  # [H, W, 3]
+    directions_world = torch.matmul(directions_cam, rotation.T)
     
-    # Create ray origins (camera position in world coordinates)
-    # All rays start from the camera position
-    ray_origins = translation.expand(H, W, 3)  # [H, W, 3]
+    ray_origins = translation.expand(H, W, 3)
     
     return ray_origins, directions_world
 
@@ -128,7 +109,7 @@ def sphere_tracing(
     t_near=0.0,
     t_far=3.0,
     max_iter=256,
-    epsilon=3e-3,  # Increased to 3e-3 for better surface detection
+    epsilon=1e-4,
 ):
     """
     Perform sphere tracing to find the intersection of rays with the implicit model.
@@ -148,54 +129,39 @@ def sphere_tracing(
     device = ray_origins.device
     H, W, _ = ray_origins.shape
 
-    # Initialize output
     image = torch.zeros(H, W, 3, device=device)
     
-    # Initialize t for each ray (starting distance)
     t = torch.ones(H, W, device=device) * t_near
     
-    # Track which rays have hit a surface
     hit_mask = torch.zeros(H, W, dtype=torch.bool, device=device)
     
-    # Track which rays are still active (not hit and not exceeded t_far)
     active_mask = torch.ones(H, W, dtype=torch.bool, device=device)
     
-    # Sphere tracing loop
     for _ in range(max_iter):
-        # Skip if all rays have hit or are inactive
         if not active_mask.any():
             break
         
-        # Sample points along active rays
-        points = ray_origins + t.unsqueeze(-1) * ray_directions  # [H, W, 3]
+        points = ray_origins + t.unsqueeze(-1) * ray_directions
         
-        # Only process active rays
-        active_points = points[active_mask]  # [num_active, 3]
+        active_points = points[active_mask]
         
-        # Query SDF model for distances and colors
-        sdf, color = model(active_points)  # [num_active, 1], [num_active, 3]
+        sdf, color = model(active_points)
         
-        # Reshape SDF and color back to match active rays
         sdf_full = torch.zeros(H, W, 1, device=device)
         color_full = torch.zeros(H, W, 3, device=device)
         
         sdf_full[active_mask] = sdf
         color_full[active_mask] = color
         
-        # Check which rays hit the surface (SDF < epsilon)
         new_hits = (sdf.squeeze(-1) < epsilon) & active_mask[active_mask]
         
-        # Update hit mask and record colors for newly hit rays
         hit_indices = torch.nonzero(active_mask)[new_hits]
         if hit_indices.shape[0] > 0:
             hit_mask[hit_indices[:, 0], hit_indices[:, 1]] = True
             image[hit_indices[:, 0], hit_indices[:, 1]] = color[new_hits]
         
-        # Update t for rays that haven't hit yet
-        # Using relaxation factor of 0.95 for nearly exact steps
         t[active_mask] = t[active_mask] + sdf.squeeze(-1) * 0.95
         
-        # Update active mask: rays are active if they haven't hit and t < t_far
         active_mask = (~hit_mask) & (t < t_far)
 
     return image
