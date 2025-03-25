@@ -68,27 +68,9 @@ def plot(dataset: ImageDataset, model_output: torch.Tensor, img_grad: torch.Tens
     axs[0].set_title("Original Image")
     axs[1].imshow(model_output.cpu().detach().view(dataset.height, dataset.height), cmap="gray")
     axs[1].set_title("Model Output")
-    
-    # Enhanced gradient visualization with better normalization
-    grad_norm = img_grad.norm(dim=-1).cpu().detach()
-    if grad_norm.max() > 0:
-        # Apply log normalization to better visualize gradients of different magnitudes
-        grad_norm = grad_norm / grad_norm.max()  # Normalize to [0, 1]
-    grad_img = grad_norm.view(dataset.height, dataset.height)
-    axs[2].imshow(grad_img, cmap="turbo", vmin=0)
+    axs[2].imshow(img_grad.norm(dim=-1).cpu().detach().view(dataset.height, dataset.height), cmap="turbo")
     axs[2].set_title("Image Gradient")
-    
-    # Enhanced Laplacian visualization
-    lap = img_laplacian.cpu().detach()
-    if lap.abs().max() > 0:
-        # For Laplacian, we want to see positive and negative values
-        # Normalize based on the absolute max value
-        abs_max = lap.abs().max()
-        lap = lap / abs_max  # Normalize to [-1, 1]
-        print(f"Normalized Laplacian range: [{lap.min().item():.4f}, {lap.max().item():.4f}]")
-    lap_img = lap.view(dataset.height, dataset.height)
-    axs[3].imshow(lap_img, cmap="seismic", vmin=-1, vmax=1)  # Use seismic colormap with fixed range
-    axs[3].set_title("Image Laplacian (∇²)")
-    
+    axs[3].imshow(img_laplacian.cpu().detach().view(dataset.height, dataset.height), cmap="turbo")
+    axs[3].set_title("Image Laplacian")
     plt.tight_layout()
     plt.show()
