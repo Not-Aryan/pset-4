@@ -42,20 +42,16 @@ class SineLayer(nn.Module):
         # For the first layer, uniform distribution in [-1/in_features, 1/in_features]
         # For subsequent layers, uniform distribution in [-sqrt(6/in_features)/omega_0, sqrt(6/in_features)/omega_0]
         if is_first_layer:
-            # First layer initialization
             bound = 1 / in_features
             nn.init.uniform_(self.linear.weight, -bound, bound)
         else:
-            # Hidden layer initialization
             bound = torch.sqrt(torch.tensor(6.0) / in_features) / self.omega_0
             nn.init.uniform_(self.linear.weight, -bound, bound)
         
-        # Initialize bias if it exists
         if self.linear.bias is not None:
             nn.init.zeros_(self.linear.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Apply linear transformation followed by sine activation with frequency omega_0
         return torch.sin(self.omega_0 * self.linear(x))
 
 
@@ -87,10 +83,8 @@ class SIREN(nn.Module):
         """
         Build the network according to the provided hyperparameters.
         """
-        # Create a list to hold all layers
         layers = []
         
-        # First layer: from input dimension to hidden dimension
         layers.append(
             SineLayer(
                 in_features=self.in_features,
@@ -101,7 +95,6 @@ class SIREN(nn.Module):
             )
         )
         
-        # Hidden layers: hidden dimension to hidden dimension
         for _ in range(self.hidden_layers):
             layers.append(
                 SineLayer(
@@ -113,12 +106,9 @@ class SIREN(nn.Module):
                 )
             )
         
-        # Output layer: hidden dimension to output dimension
         if self.last_layer_linear:
-            # Linear output layer (always has bias as per convention)
             layers.append(nn.Linear(self.hidden_features, self.out_features, bias=True))
         else:
-            # Sine output layer
             layers.append(
                 SineLayer(
                     in_features=self.hidden_features,
@@ -129,7 +119,6 @@ class SIREN(nn.Module):
                 )
             )
         
-        # Create a sequential model from the layers
         return nn.Sequential(*layers)
 
     def forward(self, coords: jaxtyping.Float[torch.Tensor, "N D"]) -> Tuple[
@@ -147,11 +136,8 @@ class SIREN(nn.Module):
         -1 means "furthest left" or "furthest bottom" (depending on the dimension) and 1 means "furthest right"
         or "furthest top".
         """
-        # Create a copy of the coordinates that requires gradients
         coords_with_grad = coords.clone().detach().requires_grad_(True)
         
-        # Pass the coordinates through the network
         outputs = self.net(coords_with_grad)
         
-        # Return the outputs and the gradient-enabled coordinates
         return outputs, coords_with_grad
